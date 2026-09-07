@@ -310,3 +310,54 @@ def test_season_totals_survives_a_march_to_september_table():
         out = add_normals(season_totals(monthly, months))
         assert not out.empty, f"season {months} produced no rows"
         assert out["wb_mm"].notna().all()
+
+
+# ---------------------------------------------------------------------------
+# translations
+# ---------------------------------------------------------------------------
+def test_both_languages_carry_the_same_keys():
+    from src.i18n import STRINGS
+
+    en, fr = set(STRINGS["en"]), set(STRINGS["fr"])
+    assert not en - fr, f"missing from French: {sorted(en - fr)}"
+    assert not fr - en, f"missing from English: {sorted(fr - en)}"
+
+
+def test_every_season_has_a_label_in_every_language():
+    from src.config import SEASONS
+    from src.i18n import LANGUAGES, season_label
+
+    for lang in LANGUAGES:
+        for key in SEASONS:
+            label = season_label(lang, key)
+            assert label and not label.startswith("season_"), (
+                f"no {lang} label for season {key!r}"
+            )
+
+
+def test_placeholders_match_between_languages():
+    """A {name} present in one language and absent in the other breaks format()."""
+    import re
+
+    from src.i18n import STRINGS
+
+    for key, en_text in STRINGS["en"].items():
+        en_slots = set(re.findall(r"\{(\w+)\}", en_text))
+        fr_slots = set(re.findall(r"\{(\w+)\}", STRINGS["fr"][key]))
+        assert en_slots == fr_slots, f"{key}: en={en_slots} fr={fr_slots}"
+
+
+def test_unknown_key_falls_back_rather_than_raising():
+    from src.i18n import t
+
+    assert t("fr", "definitely_not_a_key") == "definitely_not_a_key"
+    assert t("de", "title") == "Terroir & Climat"      # unknown language -> English
+
+
+def test_french_numbers_use_comma_and_nbsp():
+    from src.i18n import num
+
+    assert num(1234.5, "en", decimals=1) == "1,234.5"
+    assert num(1234.5, "fr", decimals=1) == "1 234,5"
+    assert num(-225, "fr", signed=True) == "-225"
+    assert num(None, "fr") == "—"

@@ -33,14 +33,16 @@ NORMAL_START = 1961
 NORMAL_END = 1990
 
 # Season windows, as inclusive month ranges.
+# Keyed by a stable id, not by a display label: the labels are translated in
+# src/i18n.py, and a season must not change identity when the language does.
 SEASONS: dict[str, tuple[int, int]] = {
-    "Apr – Jul (cereals)": (4, 7),
-    "Mar – Jun (early)": (3, 6),
-    "Apr – Sep (full season)": (4, 9),
-    "May – Aug (summer crops)": (5, 8),
-    "Mar – Sep (widest)": (3, 9),
+    "apr_jul": (4, 7),
+    "mar_jun": (3, 6),
+    "apr_sep": (4, 9),
+    "may_aug": (5, 8),
+    "mar_sep": (3, 9),
 }
-DEFAULT_SEASON = "Apr – Jul (cereals)"
+DEFAULT_SEASON = "apr_jul"
 
 # Diverging ramp for water-balance anomaly: dry (warm) -> neutral -> wet (blue).
 # A grey midpoint, so "normal" reads as normal rather than as a third colour.

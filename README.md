@@ -147,13 +147,28 @@ with most of that quota already spent by strangers. A real attempt managed 13 of
 Run `--check` first. It makes one small request and stops, so a network problem
 surfaces in seconds rather than halfway through.
 
+## Bilingual
+
+Every string is in `src/i18n.py`, English and French, with a radio at the top of
+the sidebar. Nothing else in the app holds display text.
+
+Seasons are keyed by a stable id (`apr_jul`), not by their label, so switching
+language never changes which season is selected. Numbers follow each language's
+conventions — `1,234.5` in English, `1 234,5` in French, with a no-break
+thousands space.
+
+Three tests keep it honest: both dictionaries must carry exactly the same keys,
+every season must have a label in every language, and the `{placeholders}` in a
+string must match across languages — a mismatch there would raise at runtime, in
+front of a reader, rather than in CI.
+
 ## Tests
 
 ```bash
 pip install pytest ruff && pytest -q && ruff check src tests scripts app.py
 ```
 
-25 tests on synthetic weather with known answers: a planted drought year has to
+30 tests on synthetic weather with known answers: a planted drought year has to
 come out as the driest on record, anomalies have to average zero across the
 baseline, a short baseline has to be blanked rather than published, and a
 wrapped season window has to raise rather than quietly compute the wrong thing.

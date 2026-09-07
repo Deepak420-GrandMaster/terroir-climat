@@ -6,13 +6,14 @@ import branca.colormap as cm
 import folium
 import pandas as pd
 
-from ..config import RAMP_DRY_TO_WET
+from ..config import NORMAL_END, NORMAL_START, RAMP_DRY_TO_WET
+from ..i18n import t
 
 FRANCE_CENTER = (46.6, 2.4)
 FRANCE_ZOOM = 6
 
 
-def anomaly_scale(vmax: float) -> cm.LinearColormap:
+def anomaly_scale(vmax: float, lang: str = "en") -> cm.LinearColormap:
     """A symmetric dry-to-wet scale centred on zero.
 
     Symmetry matters: if the scale ran from the minimum to the maximum of a
@@ -23,7 +24,7 @@ def anomaly_scale(vmax: float) -> cm.LinearColormap:
     """
     vmax = max(float(vmax), 1.0)
     scale = cm.LinearColormap(RAMP_DRY_TO_WET, vmin=-vmax, vmax=vmax)
-    scale.caption = "Water balance vs 1961–1990 normal (mm) — drier ← → wetter"
+    scale.caption = t(lang, "map_legend", n0=NORMAL_START, n1=NORMAL_END)
     return scale
 
 
@@ -34,10 +35,11 @@ def choropleth(
     label_col: str,
     vmax: float,
     unit: str = "mm",
+    lang: str = "en",
 ) -> folium.Map:
     """One département per polygon, shaded by ``value_col``."""
     lookup = values.set_index("code")
-    scale = anomaly_scale(vmax)
+    scale = anomaly_scale(vmax, lang)
 
     # OpenStreetMap, not CartoDB Positron: as of 2026 the Carto basemaps
     # require an API key, and a key would break the "no accounts, no keys"
@@ -71,10 +73,11 @@ def choropleth(
         props = dict(feature["properties"])
         if code in lookup.index:
             value = lookup.at[code, value_col]
-            props["value"] = "no data" if pd.isna(value) else f"{value:,.0f} {unit}"
+            props["value"] = (t(lang, "map_no_data") if pd.isna(value)
+                              else f"{value:,.0f} {unit}")
             props["detail"] = str(lookup.at[code, label_col])
         else:
-            props["value"] = "no data"
+            props["value"] = t(lang, "map_no_data")
             props["detail"] = "—"
         enriched["features"].append(
             {"type": "Feature", "geometry": feature["geometry"], "properties": props}
