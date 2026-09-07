@@ -106,6 +106,29 @@ def add_normals(
     return out
 
 
+def drop_partial_years(
+    seasonal: pd.DataFrame, min_share: float = 0.9
+) -> tuple[pd.DataFrame, list[int]]:
+    """Remove years that only some départements have.
+
+    A partial download leaves years covering a handful of départements — the
+    first batch fetched before the API cut the run off. Those years are not
+    wrong, but a map of them is: it shows a quarter of France coloured and the
+    rest blank, which reads as "no data there" rather than "not downloaded
+    yet". Better to hide the year than to publish a map that misleads.
+
+    Returns the filtered frame and the years removed, so the app can say how
+    many are still pending rather than quietly showing fewer.
+    """
+    if seasonal.empty:
+        return seasonal, []
+    full = seasonal["code"].nunique()
+    per_year = seasonal.groupby("year")["code"].nunique()
+    keep = per_year[per_year >= full * min_share].index
+    dropped = sorted(set(per_year.index) - set(keep))
+    return seasonal[seasonal["year"].isin(keep)].reset_index(drop=True), dropped
+
+
 def rank_years(seasonal: pd.DataFrame, code: str, n: int = 5) -> dict:
     """The driest and wettest seasons on record for one département."""
     d = seasonal[seasonal["code"] == code].dropna(subset=["wb_mm"])

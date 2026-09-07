@@ -124,6 +124,9 @@ download resumes where it stopped.
 """,
         "setup_geometry_ok": "Boundaries are already in place: {n} départements.",
         "error_no_seasons": "The climate table has no complete seasons for that window.",
+        "pending_years": "{k} more years ({y0}–{y1}) are downloaded for only part of "
+                         "the country and are hidden until every département has "
+                         "them. Rerun the fetch to fill them in.",
     },
 
     "fr": {
@@ -236,6 +239,10 @@ donc un téléchargement interrompu reprend là où il s'est arrêté.
         "setup_geometry_ok": "Les contours sont déjà en place : {n} départements.",
         "error_no_seasons": "La table climatique ne contient aucune saison complète "
                             "pour cette fenêtre.",
+        "pending_years": "{k} années supplémentaires ({y0}–{y1}) ne sont téléchargées "
+                         "que pour une partie du pays et restent masquées tant que "
+                         "tous les départements ne les ont pas. Relancez la "
+                         "récupération pour les compléter.",
     },
 }
 

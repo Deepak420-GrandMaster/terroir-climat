@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import pandas as pd
 import streamlit as st
 
-from .climate import add_normals, season_totals
+from .climate import add_normals, drop_partial_years, season_totals
 from .config import CENTROIDS, GEOJSON, MONTHLY
 
 
@@ -50,12 +50,17 @@ def load_monthly() -> pd.DataFrame | None:
 
 
 @st.cache_data(show_spinner=False)
-def load_seasonal(months: tuple[int, int]) -> pd.DataFrame:
-    """Seasonal water balance with each département's own normal attached."""
+def load_seasonal(months: tuple[int, int]) -> tuple[pd.DataFrame, list[int]]:
+    """Seasonal water balance with each département's own normal attached.
+
+    Years that only part of the country covers are withheld — see
+    :func:`drop_partial_years` — and returned separately so the app can say so.
+    """
     monthly = load_monthly()
     if monthly is None or monthly.empty:
-        return pd.DataFrame()
-    return add_normals(season_totals(monthly, months))
+        return pd.DataFrame(), []
+    seasonal, pending = drop_partial_years(add_normals(season_totals(monthly, months)))
+    return seasonal, pending
 
 
 def describe_state() -> DataState:

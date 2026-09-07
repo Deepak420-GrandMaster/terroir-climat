@@ -89,7 +89,7 @@ def main() -> None:
     months = SEASONS[season_key]
     season_name = season_label(lang, season_key)
 
-    seasonal = load_seasonal(months)
+    seasonal, pending_years = load_seasonal(months)
     if seasonal.empty:
         st.error(t(lang, "error_no_seasons"))
         return
@@ -193,6 +193,12 @@ def main() -> None:
     with b:
         st.markdown(t(lang, "table_wettest", dep=dep_name))
         st.dataframe(table(ranks["wettest"]), hide_index=True, width="stretch")
+
+    if pending_years:
+        st.caption(
+            t(lang, "pending_years", k=len(pending_years),
+              y0=min(pending_years), y1=max(pending_years))
+        )
 
     with st.expander(t(lang, "notes_header")):
         st.markdown(

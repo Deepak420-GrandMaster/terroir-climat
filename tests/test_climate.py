@@ -361,3 +361,43 @@ def test_french_numbers_use_comma_and_nbsp():
     assert num(1234.5, "fr", decimals=1) == "1 234,5"
     assert num(-225, "fr", signed=True) == "-225"
     assert num(None, "fr") == "—"
+
+
+# ---------------------------------------------------------------------------
+# partial downloads — a half-fetched year must not reach the map
+# ---------------------------------------------------------------------------
+def test_partial_year_is_withheld_and_reported():
+    """The first batch of a cut-off download covers a few départements only."""
+    from src.climate import drop_partial_years
+
+    codes = [f"{i:02d}" for i in range(1, 21)]
+    monthly = synthetic_monthly(codes=codes, years=range(1961, 1991))
+    # 1995 exists for only 4 of the 20 départements — a partial fetch
+    partial = monthly[
+        (monthly["year"] == 1990) & (monthly["code"].isin(codes[:4]))
+    ].copy()
+    partial["year"] = 1995
+    combined = pd.concat([monthly, partial], ignore_index=True)
+
+    seasonal = add_normals(season_totals(combined, (4, 7)))
+    assert 1995 in set(seasonal["year"])          # present before filtering
+    kept, pending = drop_partial_years(seasonal)
+    assert pending == [1995]
+    assert 1995 not in set(kept["year"])
+    assert set(kept["code"]) == set(codes)
+
+
+def test_complete_years_are_all_kept():
+    from src.climate import drop_partial_years
+
+    seasonal = add_normals(season_totals(synthetic_monthly(), (4, 7)))
+    kept, pending = drop_partial_years(seasonal)
+    assert pending == []
+    assert len(kept) == len(seasonal)
+
+
+def test_drop_partial_years_on_empty_frame():
+    from src.climate import drop_partial_years
+
+    kept, pending = drop_partial_years(pd.DataFrame())
+    assert kept.empty and pending == []

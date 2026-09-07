@@ -72,6 +72,12 @@ mean for the same months, which is what makes a dry year in Finistère comparabl
 to a dry year in Marne. A département whose baseline has fewer than 20 usable
 years is left blank rather than shown against a normal that cannot carry it.
 
+**Half-fetched years are withheld.** If a download is cut off mid-run, some
+years exist for only the first batch of départements. Those years are hidden
+rather than mapped: a map showing a quarter of France coloured and the rest grey
+reads as *"no data there"*, which is a different and false claim. The app says
+how many years are pending instead.
+
 **Part-seasons are dropped.** A year missing one month of the window would look
 artificially dry, so `season_totals` keeps only years with every month present.
 
@@ -168,7 +174,7 @@ front of a reader, rather than in CI.
 pip install pytest ruff && pytest -q && ruff check src tests scripts app.py
 ```
 
-30 tests on synthetic weather with known answers: a planted drought year has to
+33 tests on synthetic weather with known answers: a planted drought year has to
 come out as the driest on record, anomalies have to average zero across the
 baseline, a short baseline has to be blanked rather than published, and a
 wrapped season window has to raise rather than quietly compute the wrong thing.
