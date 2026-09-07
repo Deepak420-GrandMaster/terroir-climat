@@ -129,6 +129,28 @@ def drop_partial_years(
     return seasonal[seasonal["year"].isin(keep)].reset_index(drop=True), dropped
 
 
+def national_rank(seasonal: pd.DataFrame, year: int) -> dict:
+    """Where a year sits among all years, nationally.
+
+    The map shows a pattern; this says whether the pattern is remarkable. A
+    reader who does not know 1976 from 1977 should not have to drag the slider
+    across sixty years to find out which ones matter.
+    """
+    medians = seasonal.groupby("year")["wb_anom_mm"].median().dropna()
+    if year not in medians.index or medians.empty:
+        return {}
+    ordered = medians.sort_values()
+    total = len(ordered)
+    driest_rank = int(ordered.index.get_loc(year)) + 1
+    return {
+        "year": int(year),
+        "value": float(medians[year]),
+        "driest_rank": driest_rank,
+        "wettest_rank": total - driest_rank + 1,
+        "n_years": total,
+    }
+
+
 def rank_years(seasonal: pd.DataFrame, code: str, n: int = 5) -> dict:
     """The driest and wettest seasons on record for one département."""
     d = seasonal[seasonal["code"] == code].dropna(subset=["wb_mm"])

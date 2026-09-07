@@ -401,3 +401,70 @@ def test_drop_partial_years_on_empty_frame():
 
     kept, pending = drop_partial_years(pd.DataFrame())
     assert kept.empty and pending == []
+
+
+# ---------------------------------------------------------------------------
+# map highlight
+# ---------------------------------------------------------------------------
+def _tiny_geojson(codes):
+    return {
+        "type": "FeatureCollection",
+        "features": [
+            {"type": "Feature",
+             "properties": {"code": c, "nom": f"D{c}"},
+             "geometry": {"type": "Polygon",
+                          "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 0]]]}}
+            for c in codes
+        ],
+    }
+
+
+def test_highlight_adds_one_outline_layer():
+    from src.utils.maps import choropleth
+
+    values = pd.DataFrame({"code": ["51", "29"], "wb_anom_mm": [-138.0, 20.0],
+                           "detail": ["a", "b"]})
+    geo = _tiny_geojson(["51", "29"])
+    plain = choropleth(geo, values, "wb_anom_mm", "detail", 150).get_root().render()
+    lit = choropleth(geo, values, "wb_anom_mm", "detail", 150,
+                     highlight="51").get_root().render()
+    assert lit.count("fillOpacity") > plain.count("fillOpacity")
+    assert "#141a1e" in lit
+
+
+def test_unknown_highlight_code_is_ignored():
+    from src.utils.maps import choropleth
+
+    values = pd.DataFrame({"code": ["51"], "wb_anom_mm": [-138.0], "detail": ["a"]})
+    html = choropleth(_tiny_geojson(["51"]), values, "wb_anom_mm", "detail", 150,
+                      highlight="999").get_root().render()
+    assert "51" in html          # renders fine, just no outline layer
+
+
+# ---------------------------------------------------------------------------
+# national ranking — the verdict line
+# ---------------------------------------------------------------------------
+def test_national_rank_puts_the_planted_drought_first():
+    from src.climate import national_rank
+
+    out = add_normals(season_totals(with_dry_year(), (4, 7)))
+    rank = national_rank(out, 1995)
+    assert rank["driest_rank"] == 1
+    assert rank["n_years"] == 31
+    assert rank["value"] < -100
+
+
+def test_national_rank_is_consistent_both_ways():
+    from src.climate import national_rank
+
+    out = add_normals(season_totals(with_dry_year(), (4, 7)))
+    for year in (1995, 1970, 1985):
+        r = national_rank(out, year)
+        assert r["driest_rank"] + r["wettest_rank"] == r["n_years"] + 1
+
+
+def test_national_rank_unknown_year_is_empty():
+    from src.climate import national_rank
+
+    out = add_normals(season_totals(synthetic_monthly(), (4, 7)))
+    assert national_rank(out, 1899) == {}

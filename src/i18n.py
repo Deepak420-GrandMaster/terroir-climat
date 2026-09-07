@@ -22,10 +22,10 @@ STRINGS: dict[str, dict[str, str]] = {
     "en": {
         # shell
         "title": "Terroir & Climat",
-        "lede": "Growing-season water balance across {n} French départements, "
+        "lede": "Growing-season water balance across {n} French departments, "
                 "{y0}–{y1}. Showing {season} in {year}.",
         "lede_setup": "Growing-season water balance across the 96 French "
-                      "départements, {y0}–{y1}.",
+                      "departments, {y0}–{y1}.",
         "language": "Language",
 
         # sidebar
@@ -33,9 +33,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "sidebar_season_help": "Months summed",
         "sidebar_year": "Year",
         "sidebar_year_help": "Season shown",
-        "sidebar_dep": "Département",
-        "sidebar_dep_help": "Detail below the map",
-        "sidebar_note": "Normals are each département's own {n0}–{n1} mean for the "
+        "sidebar_dep": "Department",
+        "sidebar_dep_help": "Highlighted on the map",
+        "sidebar_note": "Normals are each department's own {n0}–{n1} mean for the "
                         "same months. Water balance is rainfall minus reference "
                         "evapotranspiration (ET₀) — a climatic measure, not a soil "
                         "water budget.",
@@ -49,14 +49,27 @@ STRINGS: dict[str, dict[str, str]] = {
 
         # metrics
         "metric_national": "National median anomaly",
-        "metric_below": "Départements below normal",
+        "metric_below": "Departments below normal",
         "metric_below_value": "{k} of {n}",
-        "metric_driest": "Driest département",
+        "metric_driest": "Driest department",
         "metric_vs_normal": "{v} mm vs normal",
         "metric_no_data": "no data",
 
+        # verdict line
+        "verdict_driest": "**{year} is the driest growing season on record** — "
+                          "{k} of {n} departments below normal, a national median "
+                          "of {v} mm.",
+        "verdict_dry": "{year} ranks {r} driest of {total} seasons — {k} of {n} "
+                       "departments below normal.",
+        "verdict_wettest": "**{year} is the wettest growing season on record** — "
+                           "only {k} of {n} departments below normal.",
+        "verdict_wet": "{year} ranks {r} wettest of {total} seasons — {k} of {n} "
+                       "departments below normal.",
+        "verdict_normal": "{year} is an unremarkable season: {r} driest of {total}, "
+                          "with {k} of {n} departments below normal.",
+
         # map
-        "map_legend": "Water balance vs {n0}–{n1} normal (mm) — drier ← → wetter",
+        "map_legend": "mm vs {n0}–{n1} normal · drier ← → wetter",
         "map_no_data": "no data",
         "map_detail": "{p} mm rain − {e} mm ET₀",
 
@@ -86,17 +99,17 @@ the atmosphere could take from a well-watered reference grass surface — nothin
 about soil type, rooting depth, drainage, irrigation or runoff. It is not a
 drought index and not a soil water budget.
 
-**Anomalies** are against each département's own {n0}–{n1} mean, so a dry year in
-Finistère is measured against Finistère, not against France. Départements whose
+**Anomalies** are against each department's own {n0}–{n1} mean, so a dry year in
+Finistère is measured against Finistère, not against France. Departments whose
 baseline has fewer than 20 usable years are left blank rather than shown against
 a shaky normal.
 
 **Source** is the ERA5 reanalysis via Open-Meteo, on roughly a 10 km grid,
-sampled at each département's area-weighted centroid. One point per département
+sampled at each department's area-weighted centroid. One point per department
 is a real simplification: it will misrepresent the large or mountainous ones,
-where conditions vary more within the département than between neighbours.
+where conditions vary more within the department than between neighbours.
 
-**Crop yields are not in this version.** The département-level yield data
+**Crop yields are not in this version.** The department-level yield data
 (1900–2018, ten crops) is the next milestone; this release is the climate half,
 which is the part the dissertation was missing.
 """,
@@ -122,7 +135,7 @@ Run the first command first — if it fails you will know immediately, and the
 message will say why. Every chunk is cached as it arrives, so an interrupted
 download resumes where it stopped.
 """,
-        "setup_geometry_ok": "Boundaries are already in place: {n} départements.",
+        "setup_geometry_ok": "Boundaries are already in place: {n} departments.",
         "error_no_seasons": "The climate table has no complete seasons for that window.",
         "pending_years": "{k} more years ({y0}–{y1}) are downloaded for only part of "
                          "the country and are hidden until every département has "
@@ -144,7 +157,7 @@ download resumes where it stopped.
         "sidebar_year": "Année",
         "sidebar_year_help": "Saison affichée",
         "sidebar_dep": "Département",
-        "sidebar_dep_help": "Détail sous la carte",
+        "sidebar_dep_help": "Mis en évidence sur la carte",
         "sidebar_note": "Les normales sont la moyenne {n0}–{n1} propre à chaque "
                         "département, sur les mêmes mois. Le bilan hydrique est la "
                         "pluie moins l'évapotranspiration de référence (ET₀) — une "
@@ -165,9 +178,22 @@ download resumes where it stopped.
         "metric_vs_normal": "{v} mm / normale",
         "metric_no_data": "pas de données",
 
+        # verdict line
+        "verdict_driest": "**{year} est la saison de végétation la plus sèche "
+                          "enregistrée** — {k} départements sur {n} sous la normale, "
+                          "pour une médiane nationale de {v} mm.",
+        "verdict_dry": "{year} se classe {r}ᵉ saison la plus sèche sur {total} — "
+                       "{k} départements sur {n} sous la normale.",
+        "verdict_wettest": "**{year} est la saison de végétation la plus humide "
+                           "enregistrée** — seulement {k} départements sur {n} sous "
+                           "la normale.",
+        "verdict_wet": "{year} se classe {r}ᵉ saison la plus humide sur {total} — "
+                       "{k} départements sur {n} sous la normale.",
+        "verdict_normal": "{year} est une saison ordinaire : {r}ᵉ plus sèche sur "
+                          "{total}, avec {k} départements sur {n} sous la normale.",
+
         # map
-        "map_legend": "Bilan hydrique p. r. à la normale {n0}–{n1} (mm) — "
-                      "plus sec ← → plus humide",
+        "map_legend": "mm / normale {n0}–{n1} · plus sec ← → plus humide",
         "map_no_data": "pas de données",
         "map_detail": "{p} mm de pluie − {e} mm d'ET₀",
 

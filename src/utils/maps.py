@@ -36,8 +36,14 @@ def choropleth(
     vmax: float,
     unit: str = "mm",
     lang: str = "en",
+    highlight: str | None = None,
 ) -> folium.Map:
-    """One département per polygon, shaded by ``value_col``."""
+    """One département per polygon, shaded by ``value_col``.
+
+    ``highlight`` is the code of the département selected in the sidebar. It is
+    outlined rather than recoloured: the fill carries the water-balance value,
+    and overriding it would hide the one number the map exists to show.
+    """
     lookup = values.set_index("code")
     scale = anomaly_scale(vmax, lang)
 
@@ -64,7 +70,10 @@ def choropleth(
         return {"fillColor": scale(float(value)), "color": "#ffffff",
                 "weight": 0.7, "fillOpacity": 0.88}
 
-    def highlight(_feature):
+    def on_hover(_feature):
+        # Named on_hover, not highlight: a local called `highlight` would shadow
+        # the parameter of the same name, and the selected-département outline
+        # below would silently never match.
         return {"weight": 2.2, "color": "#141a1e"}
 
     enriched = {"type": "FeatureCollection", "features": []}
@@ -86,7 +95,7 @@ def choropleth(
     folium.GeoJson(
         enriched,
         style_function=style,
-        highlight_function=highlight,
+        highlight_function=on_hover,
         tooltip=folium.GeoJsonTooltip(
             fields=["nom", "value", "detail"],
             aliases=["", "", ""],
@@ -98,6 +107,26 @@ def choropleth(
         ),
         name="départements",
     ).add_to(fmap)
+
+    # The selected département, drawn last so its outline sits above its
+    # neighbours' edges. No fill — the choropleth underneath keeps showing the
+    # value; this only says "this is the one in the charts below".
+    if highlight:
+        selected = [
+            f for f in enriched["features"]
+            if f["properties"]["code"] == highlight
+        ]
+        if selected:
+            folium.GeoJson(
+                {"type": "FeatureCollection", "features": selected},
+                style_function=lambda _f: {
+                    "fillOpacity": 0,
+                    "color": "#141a1e",
+                    "weight": 3.5,
+                },
+                name="selected",
+                interactive=False,
+            ).add_to(fmap)
 
     scale.add_to(fmap)
     return fmap

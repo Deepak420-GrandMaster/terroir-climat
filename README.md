@@ -174,7 +174,7 @@ front of a reader, rather than in CI.
 pip install pytest ruff && pytest -q && ruff check src tests scripts app.py
 ```
 
-33 tests on synthetic weather with known answers: a planted drought year has to
+38 tests on synthetic weather with known answers: a planted drought year has to
 come out as the driest on record, anomalies have to average zero across the
 baseline, a short baseline has to be blanked rather than published, and a
 wrapped season window has to raise rather than quietly compute the wrong thing.
