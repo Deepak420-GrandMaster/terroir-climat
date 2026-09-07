@@ -8,7 +8,7 @@ from __future__ import annotations
 import streamlit as st
 from streamlit_folium import st_folium
 
-from src.climate import national_rank, rank_years
+from src.climate import national_rank, rank_years, year_rank_in_departement
 from src.config import DEFAULT_SEASON, NORMAL_END, NORMAL_START, SEASONS
 from src.data_loading import (
     describe_state,
@@ -31,46 +31,92 @@ st.markdown(
     """<style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap');
 :root{
-  --ink:#141a1e; --ink-2:#4b565d; --ink-3:#7b868c;
-  --rule:#e4e8e5; --surface:#fff; --paper:#f7f9f7; --accent:#1f6fb2;
+  --ink:#131a1d; --ink-2:#4a565c; --ink-3:#7c878c;
+  --rule:#e3e8e4; --rule-soft:#eef2ee; --surface:#fff; --paper:#f6f9f6;
+  --accent:#1f6fb2; --dry:#c07a2e; --wet:#4f8fc0;
   --sans:"IBM Plex Sans Condensed",ui-sans-serif,system-ui,sans-serif;
   --serif:"Source Serif 4",Georgia,serif;
 }
-.block-container{padding-top:2rem;padding-bottom:3rem;max-width:1560px}
-h1{font-family:var(--sans)!important;font-size:2.1rem!important;font-weight:700!important;
-   letter-spacing:-.02em;margin-bottom:.1rem!important;color:var(--ink)}
-.lede{color:var(--ink-2);font-size:1rem;line-height:1.5;margin:0 0 1.4rem;
-      max-width:60rem;border-bottom:1px solid var(--rule);padding-bottom:1.1rem}
+.block-container{padding-top:1.8rem;padding-bottom:4rem;max-width:1560px}
+
+/* ---- type: bigger and calmer than Streamlit's default ---- */
+html,body,[class*="css"],p,li,label{font-family:var(--serif)}
+h1{font-family:var(--sans)!important;font-size:2.35rem!important;font-weight:700!important;
+   letter-spacing:-.022em;line-height:1.03;margin:0 0 .25rem!important;color:var(--ink)}
+.lede{color:var(--ink-2);font-size:1.08rem;line-height:1.55;margin:0 0 1.5rem;
+      max-width:62rem;border-bottom:1px solid var(--rule);padding-bottom:1.2rem}
+.sec{font-family:var(--sans);font-size:.76rem;font-weight:600;letter-spacing:.13em;
+     text-transform:uppercase;color:var(--ink-3);margin:2.1rem 0 .7rem;
+     display:flex;align-items:center;gap:.7rem}
+.sec::after{content:"";flex:1;height:1px;background:var(--rule)}
+
+/* ---- verdict banner ---- */
+[data-testid="stAlert"]{border-radius:8px;border:1px solid #cfe0ef;
+  background:#f2f8fd;padding:.85rem 1.1rem}
+[data-testid="stAlert"] p{font-size:1.02rem!important;line-height:1.5;color:var(--ink)!important}
+
+/* ---- metric cards ---- */
 [data-testid="stMetric"]{background:var(--surface);border:1px solid var(--rule);
-  border-radius:8px;padding:.85rem 1rem .95rem;
-  transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease}
-[data-testid="stMetric"]:hover{border-color:#c9d2cc;transform:translateY(-2px);
-  box-shadow:0 6px 18px -10px rgba(20,26,30,.28)}
-[data-testid="stMetricLabel"]{font-family:var(--sans)!important;font-size:.74rem!important;
-  font-weight:600!important;letter-spacing:.07em;text-transform:uppercase;
+  border-radius:10px;padding:.95rem 1.1rem 1.05rem;height:100%;
+  transition:border-color .2s ease,transform .2s ease,box-shadow .2s ease}
+[data-testid="stMetric"]:hover{border-color:#c3cec7;transform:translateY(-3px);
+  box-shadow:0 10px 26px -14px rgba(19,26,29,.35)}
+[data-testid="stMetricLabel"]{font-family:var(--sans)!important;font-size:.76rem!important;
+  font-weight:600!important;letter-spacing:.08em;text-transform:uppercase;
   color:var(--ink-3)!important}
-[data-testid="stMetricValue"]{font-family:var(--sans)!important;font-size:1.75rem!important;
-  font-weight:700!important;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+[data-testid="stMetricValue"]{font-family:var(--sans)!important;font-size:1.9rem!important;
+  font-weight:700!important;letter-spacing:-.025em;font-variant-numeric:tabular-nums;
+  line-height:1.15}
+[data-testid="stMetricDelta"]{font-size:.82rem!important}
+
+/* ---- sidebar ---- */
 [data-testid="stSidebar"]{background:var(--paper);border-right:1px solid var(--rule)}
-[data-testid="stSidebar"] h3{font-family:var(--sans)!important;font-size:.78rem!important;
-  font-weight:600!important;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--ink-3)!important;margin-bottom:.3rem!important}
-.caveat{color:var(--ink-3);font-size:.8rem;line-height:1.55}
-iframe{border-radius:8px;border:1px solid var(--rule)}
+[data-testid="stSidebar"] .block-container{padding-top:1.4rem}
+[data-testid="stSidebar"] h3{font-family:var(--sans)!important;font-size:.76rem!important;
+  font-weight:600!important;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3)!important;margin:1.1rem 0 .35rem!important}
+[data-testid="stSidebar"] label{font-size:.88rem!important;color:var(--ink-2)!important}
+.caveat{color:var(--ink-3);font-size:.82rem;line-height:1.6}
+
+/* ---- panels ---- */
+iframe{border-radius:10px;border:1px solid var(--rule)}
 [data-testid="stPlotlyChart"]{background:var(--surface);border:1px solid var(--rule);
-  border-radius:8px;padding:.35rem .5rem .1rem}
-@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-[data-testid="stMetric"],[data-testid="stPlotlyChart"],iframe{
-  animation:rise .5s cubic-bezier(.22,.8,.3,1) both}
-[data-testid="column"]:nth-child(1) [data-testid="stMetric"]{animation-delay:.02s}
-[data-testid="column"]:nth-child(2) [data-testid="stMetric"]{animation-delay:.08s}
-[data-testid="column"]:nth-child(3) [data-testid="stMetric"]{animation-delay:.14s}
-[data-testid="column"]:nth-child(4) [data-testid="stMetric"]{animation-delay:.20s}
-iframe{animation-delay:.16s}
-[data-testid="stPlotlyChart"]{animation-delay:.24s}
+  border-radius:10px;padding:.4rem .6rem .15rem;
+  transition:border-color .2s ease,box-shadow .2s ease}
+[data-testid="stPlotlyChart"]:hover{border-color:#c3cec7;
+  box-shadow:0 8px 22px -16px rgba(19,26,29,.3)}
+[data-testid="stDataFrame"]{border-radius:8px;overflow:hidden;border:1px solid var(--rule)}
+[data-testid="stExpander"]{border:1px solid var(--rule)!important;border-radius:10px!important;
+  background:var(--surface)}
+[data-testid="stExpander"] p,[data-testid="stExpander"] li{font-size:.95rem;line-height:1.65}
+
+/* ---- motion: one cascade in, then quiet ---- */
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes sweep{from{opacity:0;transform:translateY(6px) scale(.995)}
+                 to{opacity:1;transform:none}}
+h1{animation:fade .45s ease both}
+.lede{animation:rise .5s cubic-bezier(.22,.8,.3,1) both;animation-delay:.05s}
+[data-testid="stAlert"]{animation:sweep .55s cubic-bezier(.22,.8,.3,1) both;animation-delay:.10s}
+[data-testid="stMetric"],[data-testid="stPlotlyChart"],iframe,
+[data-testid="stDataFrame"],.sec{
+  animation:rise .55s cubic-bezier(.22,.8,.3,1) both}
+[data-testid="column"]:nth-child(1) [data-testid="stMetric"]{animation-delay:.16s}
+[data-testid="column"]:nth-child(2) [data-testid="stMetric"]{animation-delay:.22s}
+[data-testid="column"]:nth-child(3) [data-testid="stMetric"]{animation-delay:.28s}
+[data-testid="column"]:nth-child(4) [data-testid="stMetric"]{animation-delay:.34s}
+iframe{animation-delay:.30s}
+[data-testid="stPlotlyChart"]{animation-delay:.38s}
+[data-testid="stDataFrame"]{animation-delay:.44s}
+
+/* controls feel responsive rather than instant-swap */
+[data-testid="stSidebar"] [data-baseweb="select"]>div,
+[data-testid="stSidebar"] [data-baseweb="input"]>div{transition:border-color .16s ease}
+[data-testid="stSidebar"] [data-baseweb="select"]>div:hover{border-color:var(--accent)}
+
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
-  [data-testid="stMetric"]:hover{transform:none}
+  [data-testid="stMetric"]:hover,[data-testid="stPlotlyChart"]:hover{transform:none;box-shadow:none}
 }
 </style>""",
     unsafe_allow_html=True,
@@ -90,6 +136,17 @@ def pick_language() -> str:
     )
     st.sidebar.markdown("---")
     return chosen
+
+
+def _ordinal(n: int, lang: str) -> str:
+    """1st / 2nd / 3rd in English; 1re / 2e in French."""
+    if lang == "fr":
+        return "1re" if n == 1 else f"{n}e"
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
 
 
 def setup_screen(state, lang: str) -> None:
@@ -214,6 +271,8 @@ def main() -> None:
     )
 
     # ---------------- map ----------------
+    st.markdown(f'<p class="sec">{t(lang, "sec_map", year=year)}</p>',
+                unsafe_allow_html=True)
     vmax = seasonal["wb_anom_mm"].abs().quantile(0.98)
     left, right = st.columns([3, 2], gap="large")
 
@@ -227,9 +286,12 @@ def main() -> None:
         st.plotly_chart(anomaly_bars(seasonal, dep_code, dep_name, lang), width="stretch")
         st.plotly_chart(season_lines(seasonal, dep_code, dep_name, lang), width="stretch")
 
+    st.markdown(f'<p class="sec">{t(lang, "sec_record")}</p>', unsafe_allow_html=True)
     st.plotly_chart(national_series(seasonal, lang), width="stretch")
 
     # ---------------- rankings ----------------
+    st.markdown(f'<p class="sec">{t(lang, "sec_dep", dep=dep_name)}</p>',
+                unsafe_allow_html=True)
     ranks = rank_years(seasonal, dep_code)
     cols = {"year": t(lang, "col_year"), "wb": t(lang, "col_wb"),
             "anom": t(lang, "col_anom")}
@@ -242,19 +304,32 @@ def main() -> None:
             for r in rows
         ]
 
+    dep_rank = year_rank_in_departement(seasonal, dep_code, year)
+    span = dict(y0=dep_rank.get("first_year", ""), y1=dep_rank.get("last_year", ""))
+
     a, b = st.columns(2)
     with a:
-        st.markdown(t(lang, "table_driest", dep=dep_name))
+        st.markdown(t(lang, "table_driest", dep=dep_name, **span))
         st.dataframe(table(ranks["driest"]), hide_index=True, width="stretch")
     with b:
-        st.markdown(t(lang, "table_wettest", dep=dep_name))
+        st.markdown(t(lang, "table_wettest", dep=dep_name, **span))
         st.dataframe(table(ranks["wettest"]), hide_index=True, width="stretch")
+
+    # Says out loud where the slider's year falls, so the all-time tables stop
+    # looking like they ignored the slider.
+    if dep_rank:
+        st.caption(t(lang, "table_note", year=year, dep=dep_name,
+                     r=_ordinal(dep_rank["driest_rank"], lang),
+                     n=dep_rank["n_years"]))
 
     if pending_years:
         st.caption(
             t(lang, "pending_years", k=len(pending_years),
               y0=min(pending_years), y1=max(pending_years))
         )
+
+    with st.expander(t(lang, "origin_header")):
+        st.markdown(t(lang, "origin_body"))
 
     with st.expander(t(lang, "notes_header")):
         st.markdown(

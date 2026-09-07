@@ -14,6 +14,8 @@ place*, which is exactly what an anomaly against that place's own normal asks.
 
 from __future__ import annotations
 
+import calendar
+
 import numpy as np
 import pandas as pd
 
@@ -64,6 +66,17 @@ def season_totals(monthly: pd.DataFrame, months: tuple[int, int]) -> pd.DataFram
             f"season window {months} wraps the calendar year, which is not supported"
         )
     sel = monthly[monthly["month"].between(first, last)]
+
+    # Drop months that are not finished. The current year always has one: today
+    # is somewhere inside it, and ERA5 lags a few days besides. A half-recorded
+    # September would report roughly half its rain against a full month's normal
+    # and paint the country brown — an artefact indistinguishable, on the map,
+    # from a drought.
+    if "days" in sel.columns:
+        expected_days = sel.apply(
+            lambda r: calendar.monthrange(int(r["year"]), int(r["month"]))[1], axis=1
+        )
+        sel = sel[sel["days"] >= expected_days]
     out = (
         sel.groupby(["code", "year"], as_index=False)
         .agg(p_mm=("p_mm", "sum"), et0_mm=("et0_mm", "sum"), months=("month", "nunique"))
@@ -162,6 +175,28 @@ def rank_years(seasonal: pd.DataFrame, code: str, n: int = 5) -> dict:
         "driest": ordered.head(n)[keep].to_dict("records"),
         "wettest": ordered.tail(n)[keep].iloc[::-1].to_dict("records"),
         "n_years": int(d["year"].nunique()),
+    }
+
+
+def year_rank_in_departement(seasonal: pd.DataFrame, code: str, year: int) -> dict:
+    """Where one year sits in one département's own record.
+
+    The ranking tables are all-time, not filtered by the year slider, which
+    reads as a bug to anyone who has just moved the slider. This is what links
+    the two: it says, in words, where the selected season falls.
+    """
+    d = seasonal[seasonal["code"] == code].dropna(subset=["wb_mm"])
+    if d.empty or year not in set(d["year"]):
+        return {}
+    ordered = d.sort_values("wb_mm").reset_index(drop=True)
+    total = len(ordered)
+    driest = int(ordered.index[ordered["year"] == year][0]) + 1
+    return {
+        "driest_rank": driest,
+        "wettest_rank": total - driest + 1,
+        "n_years": total,
+        "first_year": int(d["year"].min()),
+        "last_year": int(d["year"].max()),
     }
 
 

@@ -68,6 +68,12 @@ STRINGS: dict[str, dict[str, str]] = {
         "verdict_normal": "{year} is an unremarkable season: {r} driest of {total}, "
                           "with {k} of {n} departments below normal.",
 
+        # section headings
+        "sec_map": "The country in {year}",
+        "sec_dep": "{dep} in detail",
+        "sec_record": "The whole record",
+        "trend_label": "10-year average",
+
         # map
         "map_legend": "mm vs {n0}–{n1} normal · drier ← → wetter",
         "map_no_data": "no data",
@@ -84,11 +90,57 @@ STRINGS: dict[str, dict[str, str]] = {
         "hover_vs_normal": "mm vs normal",
 
         # tables
-        "table_driest": "**{dep} — driest seasons on record**",
-        "table_wettest": "**{dep} — wettest seasons on record**",
+        "table_driest": "**{dep} — driest seasons, {y0}–{y1}**",
+        "table_wettest": "**{dep} — wettest seasons, {y0}–{y1}**",
+        "table_note": "These rank the whole record, not the year on the slider. "
+                      "**{year} is the {r} driest of {n} seasons in {dep}.**",
         "col_year": "Year",
         "col_wb": "P − ET₀ (mm)",
         "col_anom": "vs normal (mm)",
+
+        # origin
+        "origin_header": "Why this exists — what changed from the dissertation",
+        "origin_body": """
+This began as an MSc dissertation asking whether **climate variability drives
+crop yield**. The dataset it relied on could not answer that question, and the
+reason is worth stating plainly.
+
+**What the dissertation had**
+
+| | |
+|---|---|
+| Spatial unit | 101 **countries** |
+| Rainfall | **one fixed value per country**, repeated for every year, 1990–2013 |
+| Temperature | one annual mean per country |
+| Within-country variation | **none** |
+
+Rainfall had no time dimension at all: France's figure for 1995 was identical to
+its figure for 1990. You cannot correlate a crop yield against a constant, so
+the central question was unanswerable with that data — regardless of which model
+was fitted. A tuned Random Forest still reported R² ≈ 0.97, but almost all of it
+came from knowing *which country and which crop*, not from climate.
+
+**What this project changed**
+
+| | Dissertation | Here |
+|---|---|---|
+| Spatial unit | 101 countries | **96 départements** in one country |
+| Rainfall | 1 value per country, fixed | **daily**, per département |
+| Evapotranspiration | absent | **daily ET₀**, so water *balance* is possible |
+| Baseline | none | each département's **own 1961–1990 normal** |
+| Time resolution | annual | daily → monthly → any season window |
+| Verifiable against | nothing | **1976**, the drought France remembers |
+
+The point is not a better model. It is that the measurement the dissertation
+needed did not exist in its data, and now it does. The 1976 drought falls out of
+this pipeline without being told to — that is the check that it is built right.
+
+**What is still missing**
+
+Crop yields. Département-level yield data for ten crops (1900–2018) is published
+and open; joining it is the next step. Until then this is the climate half: the
+part that was absent, built and verifiable on its own.
+""",
 
         # expander
         "notes_header": "What this does and does not show",
@@ -192,6 +244,12 @@ download resumes where it stopped.
         "verdict_normal": "{year} est une saison ordinaire : {r}ᵉ plus sèche sur "
                           "{total}, avec {k} départements sur {n} sous la normale.",
 
+        # section headings
+        "sec_map": "La France en {year}",
+        "sec_dep": "{dep} en détail",
+        "sec_record": "L'ensemble de la série",
+        "trend_label": "moyenne sur 10 ans",
+
         # map
         "map_legend": "mm / normale {n0}–{n1} · plus sec ← → plus humide",
         "map_no_data": "pas de données",
@@ -208,11 +266,61 @@ download resumes where it stopped.
         "hover_vs_normal": "mm / normale",
 
         # tables
-        "table_driest": "**{dep} — saisons les plus sèches enregistrées**",
-        "table_wettest": "**{dep} — saisons les plus humides enregistrées**",
+        "table_driest": "**{dep} — saisons les plus sèches, {y0}–{y1}**",
+        "table_wettest": "**{dep} — saisons les plus humides, {y0}–{y1}**",
+        "table_note": "Ce classement porte sur toute la série, pas sur l'année du "
+                      "curseur. **{year} est la {r}ᵉ saison la plus sèche sur {n} "
+                      "dans le département {dep}.**",
         "col_year": "Année",
         "col_wb": "P − ET₀ (mm)",
         "col_anom": "écart (mm)",
+
+        # origin
+        "origin_header": "D'où vient ce projet — ce qui a changé depuis le mémoire",
+        "origin_body": """
+Ce travail est né d'un mémoire de master demandant si **la variabilité climatique
+influence les rendements agricoles**. Le jeu de données utilisé ne pouvait pas
+répondre à cette question, et la raison mérite d'être dite clairement.
+
+**Ce dont disposait le mémoire**
+
+| | |
+|---|---|
+| Unité spatiale | 101 **pays** |
+| Précipitations | **une seule valeur fixe par pays**, répétée chaque année, 1990–2013 |
+| Température | une moyenne annuelle par pays |
+| Variation intra-pays | **aucune** |
+
+Les précipitations n'avaient aucune dimension temporelle : le chiffre de la
+France pour 1995 était identique à celui de 1990. On ne peut pas corréler un
+rendement à une constante ; la question centrale était donc sans réponse
+possible avec ces données, quel que soit le modèle ajusté. Une forêt aléatoire
+optimisée affichait tout de même un R² ≈ 0,97, mais l'essentiel venait de
+*savoir quel pays et quelle culture*, non du climat.
+
+**Ce que ce projet a changé**
+
+| | Mémoire | Ici |
+|---|---|---|
+| Unité spatiale | 101 pays | **96 départements** d'un seul pays |
+| Précipitations | 1 valeur fixe par pays | **quotidiennes**, par département |
+| Évapotranspiration | absente | **ET₀ quotidienne**, donc un vrai *bilan* hydrique |
+| Référence | aucune | la **normale 1961–1990 propre** à chaque département |
+| Résolution temporelle | annuelle | quotidienne → mensuelle → toute fenêtre saisonnière |
+| Vérifiable contre | rien | **1976**, la sécheresse dont la France se souvient |
+
+L'objectif n'est pas un meilleur modèle. C'est que la mesure dont le mémoire
+avait besoin n'existait pas dans ses données, et qu'elle existe désormais. La
+sécheresse de 1976 ressort de ce pipeline sans qu'on la lui ait indiquée : c'est
+la preuve qu'il est correctement construit.
+
+**Ce qui manque encore**
+
+Les rendements. Les données départementales de rendement pour dix cultures
+(1900–2018) sont publiées et ouvertes ; les joindre est l'étape suivante. D'ici
+là, ceci est la moitié climatique : celle qui manquait, construite et
+vérifiable par elle-même.
+""",
 
         # expander
         "notes_header": "Ce que cela montre, et ce que cela ne montre pas",

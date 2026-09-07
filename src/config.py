@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as _dt
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -15,10 +16,15 @@ MONTHLY = PROCESSED / "monthly_climate.parquet"
 CACHE = RAW / "openmeteo_cache"
 
 # Study period. 1961 is the start of the WMO baseline, so nothing earlier is
-# used by any figure the app shows. Fetching 1950-1960 cost 16% of the download
-# and bought nothing.
+# used by any figure the app shows.
+#
+# The end is the current year, not a fixed one: ERA5 runs to within a few days
+# of today, and stopping at 2018 was an accident of the crop dataset's range,
+# not a property of the climate data. The current season is usually incomplete,
+# and season_totals drops it until its months are whole — so this can simply
+# say "now" and the data decides what is publishable.
 YEAR_MIN = 1961
-YEAR_MAX = 2018
+YEAR_MAX = _dt.date.today().year
 
 # Only these months are fetched. The app is about the growing season, so
 # October to February was never read by anything — and Open-Meteo's free tier

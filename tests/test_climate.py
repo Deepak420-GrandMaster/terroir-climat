@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import calendar
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -24,7 +26,12 @@ def daily_record(code: str, year: int, p_per_day: float, et0_per_day: float) -> 
 
 
 def synthetic_monthly(codes=("51", "29"), years=range(1961, 1991), seed=0):
-    """A stable baseline period, so normals are predictable."""
+    """A stable baseline period, so normals are predictable.
+
+    ``days`` has to be the real length of each month: season_totals drops
+    months that are not finished, and a flat 30 would make every 31-day month
+    look half-recorded.
+    """
     rng = np.random.default_rng(seed)
     rows = []
     for code in codes:
@@ -34,7 +41,7 @@ def synthetic_monthly(codes=("51", "29"), years=range(1961, 1991), seed=0):
                     "code": code, "year": year, "month": month,
                     "p_mm": 50 + rng.normal(0, 3),
                     "et0_mm": 40 + rng.normal(0, 3),
-                    "days": 30,
+                    "days": calendar.monthrange(year, month)[1],
                 })
     return pd.DataFrame(rows)
 
@@ -468,3 +475,101 @@ def test_national_rank_unknown_year_is_empty():
 
     out = add_normals(season_totals(synthetic_monthly(), (4, 7)))
     assert national_rank(out, 1899) == {}
+
+
+# ---------------------------------------------------------------------------
+# the current season is not finished
+# ---------------------------------------------------------------------------
+def test_incomplete_month_is_dropped_so_the_year_falls_out():
+    """A part-recorded September must not be summed against a full normal."""
+    monthly = daily_to_monthly([daily_record("51", 2000, 2.0, 1.0)])
+    partial = monthly.copy()
+    partial["year"] = 2026
+    partial.loc[partial["month"] == 9, "days"] = 12       # month still running
+    partial.loc[partial["month"] == 9, "p_mm"] = 24.0
+    combined = pd.concat([monthly, partial], ignore_index=True)
+
+    out = season_totals(combined, (3, 9))
+    assert 2000 in set(out["year"])
+    assert 2026 not in set(out["year"]), "an unfinished season reached the map"
+
+
+def test_a_finished_current_year_is_kept():
+    monthly = daily_to_monthly([daily_record("51", 2000, 2.0, 1.0)])
+    full = monthly.copy()
+    full["year"] = 2026                                   # every month complete
+    out = season_totals(pd.concat([monthly, full], ignore_index=True), (3, 9))
+    assert {2000, 2026} <= set(out["year"])
+
+
+def test_shorter_window_survives_an_unfinished_september():
+    """Apr-Jul is complete long before September is."""
+    monthly = daily_to_monthly([daily_record("51", 2000, 2.0, 1.0)])
+    partial = monthly.copy()
+    partial["year"] = 2026
+    partial.loc[partial["month"] == 9, "days"] = 12
+    out = season_totals(pd.concat([monthly, partial], ignore_index=True), (4, 7))
+    assert 2026 in set(out["year"]), "Apr-Jul should still be publishable"
+
+
+def test_year_max_tracks_the_calendar():
+    import datetime
+
+    from src.config import YEAR_MAX
+
+    assert YEAR_MAX == datetime.date.today().year
+
+
+def test_national_chart_carries_a_trend_line_when_long_enough():
+    from src.utils.charts import national_series
+
+    out = add_normals(season_totals(synthetic_monthly(), (4, 7)))   # 30 years
+    fig = national_series(out)
+    kinds = [tr.type for tr in fig.data]
+    assert "bar" in kinds and "scatter" in kinds, kinds
+
+
+def test_short_record_gets_bars_only():
+    from src.utils.charts import national_series
+
+    short = synthetic_monthly(years=range(1961, 1966))
+    fig = national_series(add_normals(season_totals(short, (4, 7))))
+    assert [tr.type for tr in fig.data] == ["bar"]
+
+
+# ---------------------------------------------------------------------------
+# linking the slider to the all-time tables
+# ---------------------------------------------------------------------------
+def test_year_rank_in_departement_matches_the_table_order():
+    from src.climate import rank_years, year_rank_in_departement
+
+    out = add_normals(season_totals(with_dry_year(), (4, 7)))
+    driest_year = rank_years(out, "51")["driest"][0]["year"]
+    rank = year_rank_in_departement(out, "51", driest_year)
+    assert rank["driest_rank"] == 1
+    assert rank["n_years"] == 31
+    assert rank["first_year"] == 1961
+
+
+def test_year_rank_is_symmetric():
+    from src.climate import year_rank_in_departement
+
+    out = add_normals(season_totals(with_dry_year(), (4, 7)))
+    r = year_rank_in_departement(out, "51", 1975)
+    assert r["driest_rank"] + r["wettest_rank"] == r["n_years"] + 1
+
+
+def test_year_rank_missing_year_is_empty():
+    from src.climate import year_rank_in_departement
+
+    out = add_normals(season_totals(synthetic_monthly(), (4, 7)))
+    assert year_rank_in_departement(out, "51", 1899) == {}
+
+
+def test_ordinals_read_correctly():
+    import importlib
+
+    app = importlib.import_module("app")
+    assert [app._ordinal(n, "en") for n in (1, 2, 3, 4, 11, 21)] == \
+        ["1st", "2nd", "3rd", "4th", "11th", "21st"]
+    assert [app._ordinal(n, "fr") for n in (1, 2, 3)] == ["1re", "2e", "3e"]

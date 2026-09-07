@@ -86,7 +86,13 @@ def season_lines(
 
 
 def national_series(seasonal: pd.DataFrame, lang: str = "en") -> go.Figure:
-    """The country-wide median anomaly, so single years have a reference."""
+    """The country-wide median anomaly, with a decade average over it.
+
+    The bars answer "was that year dry?"; the rolling line answers "is it
+    getting drier?" — a different question, and the one a single year cannot
+    settle. Ten years is long enough to flatten a 1976 and short enough to
+    still bend.
+    """
     d = (
         seasonal.groupby("year", as_index=False)
         .agg(median_anom=("wb_anom_mm", "median"))
@@ -97,7 +103,19 @@ def national_series(seasonal: pd.DataFrame, lang: str = "en") -> go.Figure:
 
     fig = go.Figure(go.Bar(
         x=d["year"], y=d["median_anom"], marker_color=colours, marker_line_width=0,
-        hovertemplate="%{x}<br>%{y:+.0f} " + unit + "<extra></extra>"))
+        name="", hovertemplate="%{x}<br>%{y:+.0f} " + unit + "<extra></extra>"))
+
+    if len(d) >= 10:
+        trend = d["median_anom"].rolling(10, center=True, min_periods=6).mean()
+        fig.add_trace(go.Scatter(
+            x=d["year"], y=trend, name=t(lang, "trend_label"),
+            line=dict(color=INK, width=2.5),
+            hovertemplate="%{x}<br>%{y:+.0f} " + unit + "<extra></extra>"))
+
     fig.add_hline(y=0, line_width=1, line_color=INK, opacity=0.45)
-    fig.update_layout(title=t(lang, "chart_national"))
-    return _layout(fig, 230, t(lang, "axis_mm"))
+    fig.update_layout(
+        title=t(lang, "chart_national"),
+        showlegend=len(d) >= 10,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+    )
+    return _layout(fig, 250, t(lang, "axis_mm"))

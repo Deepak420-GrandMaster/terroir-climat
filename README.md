@@ -1,6 +1,6 @@
 # Terroir & Climat
 
-**Growing-season water balance across the 96 French départements, 1961–2018 — Streamlit + Folium + Open-Meteo.**
+**Growing-season water balance across the 96 French départements, 1961–present — Streamlit + Folium + Open-Meteo.**
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -77,6 +77,13 @@ years exist for only the first batch of départements. Those years are hidden
 rather than mapped: a map showing a quarter of France coloured and the rest grey
 reads as *"no data there"*, which is a different and false claim. The app says
 how many years are pending instead.
+
+**Unfinished months are dropped.** The study period runs to the current year,
+so there is always a month still in progress — and ERA5 lags a few days besides.
+A half-recorded September summed against a full month's normal would paint the
+country brown, an artefact indistinguishable on the map from a drought. So a
+month counts only once its real length is present, which is why Apr–Jul for the
+current year is publishable months before Mar–Sep is.
 
 **Part-seasons are dropped.** A year missing one month of the window would look
 artificially dry, so `season_totals` keeps only years with every month present.
@@ -174,7 +181,7 @@ front of a reader, rather than in CI.
 pip install pytest ruff && pytest -q && ruff check src tests scripts app.py
 ```
 
-38 tests on synthetic weather with known answers: a planted drought year has to
+48 tests on synthetic weather with known answers: a planted drought year has to
 come out as the driest on record, anomalies have to average zero across the
 baseline, a short baseline has to be blanked rather than published, and a
 wrapped season window has to raise rather than quietly compute the wrong thing.
