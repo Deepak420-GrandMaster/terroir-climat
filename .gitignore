@@ -1,0 +1,13 @@
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+.DS_Store
+
+# Raw Open-Meteo chunks: tens of megabytes of JSON, and reproducible from
+# scripts/build_climate_table.py. Not committed.
+data/raw/openmeteo_cache/
+
+# The built table IS committed — it is under a megabyte, and a deployed app
+# with no terminal has no other way to get it. See .github/workflows/.
