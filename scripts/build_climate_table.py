@@ -1,17 +1,24 @@
 """Build the monthly climate table for every French département.
 
-    python scripts/build_climate_table.py                # 1950-2018
-    python scripts/build_climate_table.py --years 2010 2018   # a quick slice
-    python scripts/build_climate_table.py --check        # one call, then stop
+    python scripts/build_climate_table.py                     # 1961-2018
+    python scripts/build_climate_table.py --years 2000 2018   # a quick slice
+    python scripts/build_climate_table.py --check             # one call, then stop
+
+Only the growing-season months are fetched (see FETCH_MONTHS in src/config.py).
+That is not a shortcut: the app never reads October to February, and Open-Meteo's
+free tier meters by data volume, so fetching them was the difference between a
+download that finishes and one that hits the daily ceiling.
 
 Needs an internet connection. Every chunk is cached under
 ``data/raw/openmeteo_cache/``, so an interrupted run resumes where it stopped
-instead of starting over, and a second run costs nothing.
+and a second run costs nothing. If the free tier cuts you off, wait an hour (or
+a day) and rerun — it picks up exactly where it stopped.
 """
 
 from __future__ import annotations
 
 import argparse
+import calendar
 import json
 import sys
 import time
@@ -26,18 +33,17 @@ from src.config import (  # noqa: E402
     CACHE,
     CENTROIDS,
     COORDS_PER_CALL,
+    FETCH_MONTHS,
     MONTHLY,
     PROCESSED,
     YEAR_MAX,
     YEAR_MIN,
-    YEARS_PER_CALL,
 )
 from src.services.openmeteo import (  # noqa: E402
     OpenMeteoError,
     Point,
     chunks,
     fetch_daily,
-    year_chunks,
 )
 
 
@@ -50,8 +56,11 @@ def load_points() -> list[Point]:
     return [Point(r.code, float(r.lat), float(r.lon)) for r in df.itertuples()]
 
 
-def cache_path(batch: int, first: int, last: int) -> Path:
-    return CACHE / f"batch{batch:02d}_{first}_{last}.json"
+def cache_path(batch: int, year: int) -> Path:
+    """Named by the months too, so chunks from a different fetch window
+    (an earlier, wider one) are ignored rather than silently mixed in."""
+    m0, m1 = FETCH_MONTHS
+    return CACHE / f"b{batch:02d}_{year}_m{m0}{m1}.json"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -59,7 +68,6 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--years", nargs=2, type=int, metavar=("FIRST", "LAST"),
                     default=[YEAR_MIN, YEAR_MAX])
     ap.add_argument("--coords-per-call", type=int, default=COORDS_PER_CALL)
-    ap.add_argument("--years-per-call", type=int, default=YEARS_PER_CALL)
     ap.add_argument("--pause", type=float, default=10.0,
                     help="starting seconds between calls; adapts as it runs (default 10)")
     ap.add_argument("--check", action="store_true",
@@ -84,10 +92,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     first, last = args.years
+    m0, m1 = FETCH_MONTHS
     batches = chunks(points, args.coords_per_call)
-    spans = year_chunks(first, last, args.years_per_call)
-    total = len(batches) * len(spans)
-    print(f"{total} calls: {len(batches)} coordinate batches × {len(spans)} year spans")
+    years = list(range(first, last + 1))
+    total = len(batches) * len(years)
+    days = sum(calendar.monthrange(2001, m)[1] for m in range(m0, m1 + 1))
+    volume = len(points) * len(years) * days * 2
+    print(f"{total} calls: {len(batches)} coordinate batches × {len(years)} years")
+    print(f"months {m0}-{m1} only — about {volume/1e6:.1f}M values in total")
     print(f"cache: {CACHE}\n")
 
     # Open-Meteo's free tier meters by data volume per minute, so the pace is
@@ -107,15 +119,21 @@ def main(argv: list[str] | None = None) -> int:
               f"(attempt {attempt}/{of}, pacing now {pause:.0f}s)", flush=True)
 
     for bi, batch in enumerate(batches):
-        for y0, y1 in spans:
+        for yr in years:
             done += 1
-            path = cache_path(bi, y0, y1)
-            tag = f"[{done}/{total}] batch {bi:02d} {y0}-{y1}"
+            path = cache_path(bi, yr)
+            tag = f"[{done}/{total}] batch {bi:02d} {yr}"
             if path.exists():
                 print(f"{tag}  cached", flush=True)
                 continue
             try:
-                recs = fetch_daily(batch, f"{y0}-01-01", f"{y1}-12-31", on_wait=on_wait)
+                last_day = calendar.monthrange(yr, m1)[1]
+                recs = fetch_daily(
+                    batch,
+                    f"{yr}-{m0:02d}-01",
+                    f"{yr}-{m1:02d}-{last_day}",
+                    on_wait=on_wait,
+                )
             except OpenMeteoError as exc:
                 print(f"\n{tag}  FAILED\n{exc}\n")
                 print("Nothing is lost — rerun this script and it resumes from here.")
@@ -138,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print("\nassembling monthly table …")
     frames = []
-    for path in sorted(CACHE.glob("batch*.json")):
+    for path in sorted(CACHE.glob(f"b*_m{FETCH_MONTHS[0]}{FETCH_MONTHS[1]}.json")):
         frames.append(daily_to_monthly(json.loads(path.read_text())))
     monthly = (
         pd.concat(frames, ignore_index=True)

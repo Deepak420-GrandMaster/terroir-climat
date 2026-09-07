@@ -14,11 +14,19 @@ CENTROIDS = RAW / "departements_centroids.csv"
 MONTHLY = PROCESSED / "monthly_climate.parquet"
 CACHE = RAW / "openmeteo_cache"
 
-# Study period. 1950 rather than 1900 because département boundaries and the
-# Paris region were reorganised in 1968 and earlier records are patchier;
-# ERA5 reanalysis also starts in 1940, so 1950 leaves a clean margin.
-YEAR_MIN = 1950
+# Study period. 1961 is the start of the WMO baseline, so nothing earlier is
+# used by any figure the app shows. Fetching 1950-1960 cost 16% of the download
+# and bought nothing.
+YEAR_MIN = 1961
 YEAR_MAX = 2018
+
+# Only these months are fetched. The app is about the growing season, so
+# October to February was never read by anything — and Open-Meteo's free tier
+# meters by data volume, which made that waste the difference between a
+# download that finishes and one that hits the ceiling. Every season window
+# below sits inside this range; widening one means widening this first and
+# refetching.
+FETCH_MONTHS = (3, 9)
 
 # Baseline for "normal". The WMO standard reference period.
 NORMAL_START = 1961
@@ -30,7 +38,7 @@ SEASONS: dict[str, tuple[int, int]] = {
     "Mar – Jun (early)": (3, 6),
     "Apr – Sep (full season)": (4, 9),
     "May – Aug (summer crops)": (5, 8),
-    "Jan – Dec (calendar year)": (1, 12),
+    "Mar – Sep (widest)": (3, 9),
 }
 DEFAULT_SEASON = "Apr – Jul (cereals)"
 
@@ -50,9 +58,9 @@ FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 DAILY_VARS = ["precipitation_sum", "et0_fao_evapotranspiration"]
 TIMEZONE = "Europe/Paris"
 
-# Fetch batching. Kept small deliberately: the free tier's limits are not
-# published, so the script trades a few more requests for a lower chance of
-# being throttled, and caches every chunk so a failure resumes rather than
-# restarts.
-COORDS_PER_CALL = 8
-YEARS_PER_CALL = 10
+# Fetch batching: one call per (batch of départements, single year). The free
+# tier meters by data volume rather than request count, so more départements
+# per call is free — it is the same bytes in fewer round trips. One year per
+# call keeps each cached chunk small, so an interrupted run loses seconds of
+# work rather than minutes.
+COORDS_PER_CALL = 24

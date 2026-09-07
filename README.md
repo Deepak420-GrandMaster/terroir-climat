@@ -1,6 +1,6 @@
 # Terroir & Climat
 
-**Growing-season water balance across the 96 French départements, 1950–2018 — Streamlit + Folium + Open-Meteo.**
+**Growing-season water balance across the 96 French départements, 1961–2018 — Streamlit + Folium + Open-Meteo.**
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -37,7 +37,7 @@ its rainfall column held one fixed value per country, repeated for every year,
 so there was no within-country variation to correlate against yield at all.
 
 This project builds the measurement that was missing — real daily weather,
-resolved to 96 sub-national units, over 69 years. Crop yields join it in the
+resolved to 96 sub-national units, over 58 years. Crop yields join it in the
 next milestone. The climate half stands on its own in the meantime.
 
 ## Data
@@ -62,9 +62,10 @@ evaporated from a well-watered reference grass surface. It is deliberately not a
 soil water budget — no runoff, drainage, rooting depth or soil storage — and it
 is not a drought index.
 
-**The stored table is monthly, not seasonal.** Any season window is then a sum
-over months, so changing the window is instant and needs no refetch. 96
-départements × 69 years × 12 months is 79,488 rows and a file under a megabyte.
+**The stored table is monthly, not seasonal.** Any season window inside the
+fetched months is then a sum over months, so changing the window is instant and
+needs no refetch. 96 départements × 58 years × 7 months is 38,976 rows and a file
+well under a megabyte.
 
 **Anomalies are per-département.** Each is measured against its own 1961–1990
 mean for the same months, which is what makes a dry year in Finistère comparable
@@ -116,17 +117,32 @@ testable and reusable without a browser.
 
 ## The fetch
 
-`build_climate_table.py` batches 8 départements and 10 years per request and
-caches every chunk under `data/raw/openmeteo_cache/`. An interrupted run
-resumes; a repeat run costs nothing.
+`build_climate_table.py` makes one request per (24 départements, one year) and
+caches every chunk under `data/raw/openmeteo_cache/`. More départements per call
+is free — the tier meters bytes, not requests — while one year per call keeps
+each cached chunk small, so an interruption loses seconds rather than minutes.
+Cache filenames encode the month window, so chunks from a wider earlier fetch
+are ignored rather than silently mixed in.
 
-**Expect 20–40 minutes on the free tier, once.** Open-Meteo meters by data
-volume per minute, not by request count, and 96 départements × 69 years × 2
-variables is a lot of volume. The script paces itself: every rate-limit refusal
-waits out the full minute the API asks for and permanently slows the loop, and a
-clean run gradually speeds it back up, so it settles just under whatever the
-limit is that day. Seeing `rate limit reached — waiting 62s` a few times is
-normal, not a failure.
+**Only the growing season is fetched — March to September.** The app never
+reads October to February, and Open-Meteo's free tier meters by *data volume*,
+not by request count. Fetching the whole calendar year from 1950 meant 4.8
+million values and the download simply could not finish; March–September from
+1961 is 2.4 million, and 1961 is where the WMO baseline starts anyway. Widening
+either means editing `FETCH_MONTHS` / `YEAR_MIN` and refetching — a test fails
+if a season window falls outside what is fetched.
+
+**Expect 30–60 minutes, once, and possibly two sittings.** The script paces
+itself: every refusal waits out the full minute the API asks for and permanently
+slows the loop, and a clean run gradually speeds back up. `rate limit reached —
+waiting 62s` is normal. If it gives up with *"still rate-limiting after 8
+attempts"*, the daily budget is spent — wait an hour or a day and rerun; every
+chunk already fetched is cached.
+
+**Do not run this on a shared runner.** Open-Meteo limits per IP address, and
+GitHub Actions runners share IPs with thousands of other jobs, so they arrive
+with most of that quota already spent by strangers. A real attempt managed 13 of
+84 calls before being cut off for good. Run it from your own machine.
 
 Run `--check` first. It makes one small request and stops, so a network problem
 surfaces in seconds rather than halfway through.
@@ -137,7 +153,7 @@ surfaces in seconds rather than halfway through.
 pip install pytest ruff && pytest -q && ruff check src tests scripts app.py
 ```
 
-17 tests on synthetic weather with known answers: a planted drought year has to
+25 tests on synthetic weather with known answers: a planted drought year has to
 come out as the driest on record, anomalies have to average zero across the
 baseline, a short baseline has to be blanked rather than published, and a
 wrapped season window has to raise rather than quietly compute the wrong thing.

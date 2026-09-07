@@ -260,3 +260,53 @@ def test_server_error_uses_short_backoff_not_the_minute(monkeypatch):
     monkeypatch.setattr(om.time, "sleep", lambda s: slept.append(s))
     om.fetch_daily([om.Point("51", 48.95, 4.24)], "2000-01-01", "2000-01-01")
     assert slept[0] < 30, "a 503 should retry quickly, not wait out a minute"
+
+
+# ---------------------------------------------------------------------------
+# fetch window — the ceiling a real run found
+# ---------------------------------------------------------------------------
+def test_every_season_fits_inside_the_fetched_months():
+    """A season window outside FETCH_MONTHS would silently produce no rows."""
+    from src.config import FETCH_MONTHS, SEASONS
+
+    lo, hi = FETCH_MONTHS
+    for label, (first, last) in SEASONS.items():
+        assert lo <= first <= last <= hi, (
+            f"season {label!r} spans {first}-{last}, outside the fetched "
+            f"window {lo}-{hi}; widen FETCH_MONTHS and refetch"
+        )
+
+
+def test_default_season_is_a_real_season():
+    from src.config import DEFAULT_SEASON, SEASONS
+
+    assert DEFAULT_SEASON in SEASONS
+
+
+def test_baseline_sits_inside_the_study_period():
+    from src.config import NORMAL_END, NORMAL_START, YEAR_MAX, YEAR_MIN
+
+    assert YEAR_MIN <= NORMAL_START < NORMAL_END <= YEAR_MAX
+    assert NORMAL_END - NORMAL_START + 1 >= 30, "a normal needs 30 years"
+
+
+def test_cache_names_encode_the_month_window():
+    """Chunks from a wider earlier fetch must not be mixed into a narrower one."""
+    import importlib
+
+    mod = importlib.import_module("scripts.build_climate_table")
+    name = mod.cache_path(3, 1976).name
+    assert "1976" in name and "m39" in name, name
+
+
+def test_season_totals_survives_a_march_to_september_table():
+    """The real table only has months 3-9; every offered season must still work."""
+    from src.config import FETCH_MONTHS, SEASONS
+
+    lo, hi = FETCH_MONTHS
+    monthly = synthetic_monthly()
+    monthly = monthly[monthly["month"].between(lo, hi)]
+    for months in SEASONS.values():
+        out = add_normals(season_totals(monthly, months))
+        assert not out.empty, f"season {months} produced no rows"
+        assert out["wb_mm"].notna().all()
