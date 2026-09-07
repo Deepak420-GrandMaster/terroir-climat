@@ -1,0 +1,79 @@
+name: Build climate table
+
+# The Open-Meteo download is slow because the free tier meters by data volume,
+# not request count. Running it here rather than on a laptop means nobody has to
+# babysit a terminal for half an hour, and the result is committed so the
+# deployed app never fetches anything at all.
+
+on:
+  workflow_dispatch:
+    inputs:
+      first_year:
+        description: "First year"
+        default: "1950"
+      last_year:
+        description: "Last year"
+        default: "2018"
+  schedule:
+    - cron: "0 4 1 2 *"   # 04:00 on 1 February, once the previous year is complete
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # The cache carries partial downloads between runs, so a run that times
+      # out or gets rate-limited into the ground resumes instead of restarting.
+      - name: Restore partial download
+        uses: actions/cache@v4
+        with:
+          path: data/raw/openmeteo_cache
+          key: openmeteo-${{ inputs.first_year || '1950' }}-${{ inputs.last_year || '2018' }}-${{ github.run_id }}
+          restore-keys: |
+            openmeteo-${{ inputs.first_year || '1950' }}-${{ inputs.last_year || '2018' }}-
+
+      - name: Check the connection
+        run: python scripts/build_climate_table.py --check
+
+      - name: Build the table
+        run: |
+          python scripts/build_climate_table.py \
+            --years ${{ inputs.first_year || '1950' }} ${{ inputs.last_year || '2018' }}
+
+      - name: Sanity-check what was built
+        run: |
+          python - <<'PY'
+          import pandas as pd
+          from src.config import MONTHLY
+          df = pd.read_parquet(MONTHLY)
+          assert df["code"].nunique() == 96, f"only {df['code'].nunique()} départements"
+          assert not df[["p_mm", "et0_mm"]].isna().any().any(), "nulls in the totals"
+          assert (df["p_mm"] >= 0).all(), "negative rainfall"
+          assert (df["et0_mm"] >= 0).all(), "negative ET0"
+          print(f"{len(df):,} rows, {df['code'].nunique()} départements, "
+                f"{df['year'].min()}–{df['year'].max()}")
+          PY
+
+      - name: Commit the table
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/processed/monthly_climate.parquet
+          if git diff --staged --quiet; then
+            echo "no change"
+          else
+            git commit -m "data: rebuild monthly climate table"
+            git push
+          fi
